@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-900 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Young's Modulus Determination Lab</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for real-time plotting -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- MathJax for nice formula rendering -->
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.25);
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col overflow-x-hidden">
+
+    <!-- Header Section -->
+    <header class="bg-slate-800/80 backdrop-blur border-b border-slate-700/60 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-cyan-500/10 rounded-lg text-cyan-400 border border-cyan-500/20">
+                    <i class="fa-solid fa-flask-vial text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white leading-none">Young's Modulus Virtual Physics Lab</h1>
+                    <p class="text-xs text-slate-400 mt-1">Tensile Testing & Elastic Deformation Visualizer</p>
+                </div>
+            </div>
+
+            <!-- Material Selector & Quick Actions -->
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="flex items-center bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700">
+                    <label for="material-select" class="text-xs font-medium text-slate-400 mr-2"><i class="fa-solid fa-atom text-cyan-400 mr-1"></i>Material:</label>
+                    <select id="material-select" class="bg-transparent text-sm font-semibold text-cyan-300 focus:outline-none cursor-pointer">
+                        <option value="steel" class="bg-slate-800 text-slate-200">Copper Wire (E = 110 GPa)</option>
+                        <option value="steel_hard" class="bg-slate-800 text-slate-200" selected>Steel Wire (E = 200 GPa)</option>
+                        <option value="aluminum" class="bg-slate-800 text-slate-200">Aluminum Wire (E = 70 GPa)</option>
+                        <option value="brass" class="bg-slate-800 text-slate-200">Brass Wire (E = 100 GPa)</option>
+                    </select>
+                </div>
+
+                <button id="btn-play-pause" class="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-2 shadow-lg shadow-cyan-600/20">
+                    <i class="fa-solid fa-play" id="play-icon"></i> <span id="play-text">Auto Loading</span>
+                </button>
+                <button id="btn-reset" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold px-3 py-2 rounded-lg transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-rotate-right"></i> Reset
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- LEFT COLUMN: Canvas Visualizer (5 Cols) -->
+        <div class="lg:col-span-5 flex flex-col gap-4">
+            <div class="bg-slate-800/50 rounded-2xl border border-slate-700/60 p-4 flex flex-col h-full relative overflow-hidden glow-cyan">
+                
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-weight-hanging"></i> Apparatus Visualizer
+                    </span>
+                    <span class="text-xs px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-300 font-mono border border-slate-700" id="elastic-status">
+                        Elastic Region
+                    </span>
+                </div>
+
+                <!-- Canvas Simulation Frame -->
+                <div class="relative w-full flex-1 min-h-[420px] bg-slate-950 rounded-xl border border-slate-800 overflow-hidden shadow-inner flex justify-center items-center">
+                    <canvas id="apparatus-canvas" class="w-full h-full block"></canvas>
+                    
+                    <!-- Overlay Tooltip for Extension Scale Zoom -->
+                    <div class="absolute top-3 right-3 bg-slate-900/90 border border-slate-700/80 rounded-lg p-2.5 text-xs font-mono shadow-xl backdrop-blur">
+                        <div class="text-slate-400 text-[10px] uppercase tracking-wider mb-1">Scale Magnifier</div>
+                        <div class="flex justify-between gap-4">
+                            <span>Main Scale:</span>
+                            <span class="text-white font-bold" id="zoom-main-scale">2.00 m</span>
+                        </div>
+                        <div class="flex justify-between gap-4">
+                            <span>Extension (&Delta;L):</span>
+                            <span class="text-cyan-400 font-bold" id="zoom-extension">0.00 mm</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Controls & Sliders -->
+                <div class="mt-4 space-y-3 bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                    <div>
+                        <div class="flex justify-between text-xs font-medium mb-1">
+                            <span class="text-slate-300"><i class="fa-solid fa-weight-scale text-amber-400 mr-1.5"></i>Applied Mass Load (m)</span>
+                            <span class="text-amber-400 font-bold font-mono" id="val-mass">0.0 kg</span>
+                        </div>
+                        <input type="range" id="slider-mass" min="0" max="10" step="0.2" value="0"
+                            class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-400">
+                        <div class="flex justify-between text-[10px] text-slate-500 mt-0.5">
+                            <span>0 kg (No load)</span>
+                            <span>5.0 kg</span>
+                            <span>10.0 kg (Max limit)</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 pt-1 border-t border-slate-800/80">
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Original Length ($L_0$)</label>
+                            <input type="number" id="input-length" value="2.00" step="0.1" min="0.5" max="5.0"
+                                class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-white text-center focus:border-cyan-500 focus:outline-none">
+                            <span class="text-[10px] text-slate-500 block text-center mt-0.5">meters (m)</span>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] text-slate-400 mb-1">Wire Diameter ($d$)</label>
+                            <input type="number" id="input-diameter" value="0.50" step="0.05" min="0.1" max="2.0"
+                                class="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-xs text-white text-center focus:border-cyan-500 focus:outline-none">
+                            <span class="text-[10px] text-slate-500 block text-center mt-0.5">millimeters (mm)</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Real-Time Graphs & Analytical Dashboard (7 Cols) -->
+        <div class="lg:col-span-7 flex flex-col gap-6">
+
+            <!-- Real-time Chart Dashboard (Tabs or Dual Display) -->
+            <div class="bg-slate-800/50 rounded-2xl border border-slate-700/60 p-4 flex flex-col shadow-lg">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex space-x-2 border-b border-slate-700 w-full pb-2">
+                        <button id="tab-btn-stress" class="text-xs font-bold px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-chart-line"></i> Stress vs Strain Curve
+                        </button>
+                        <button id="tab-btn-force" class="text-xs font-bold px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-chart-area"></i> Force vs Extension
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Canvas Chart Containers -->
+                <div class="relative w-full h-[250px] sm:h-[280px]">
+                    <canvas id="chart-canvas"></canvas>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-2 italic text-center">
+                    * The gradient ($\sigma/\varepsilon$) of the linear region represents the <span class="text-cyan-400 font-semibold">Young's Modulus ($E$)</span>.
+                </p>
+            </div>
+
+            <!-- Mathematical Calculation & Live Reading Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                <!-- Step-by-Step Live Data Panel -->
+                <div class="bg-slate-800/50 rounded-2xl border border-slate-700/60 p-4 flex flex-col justify-between">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-3 flex items-center gap-2">
+                        <i class="fa-solid fa-calculator text-cyan-400"></i> Measured Parameters
+                    </h3>
+
+                    <div class="space-y-2.5 text-xs font-mono">
+                        <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800">
+                            <span class="text-slate-400">Force ($F = mg$):</span>
+                            <span id="calc-force" class="text-amber-400 font-bold">0.00 N</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800">
+                            <span class="text-slate-400">Area ($A = \frac{\pi d^2}{4}$):</span>
+                            <span id="calc-area" class="text-emerald-400 font-bold">1.963 &times; 10⁻⁷ m²</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800">
+                            <span class="text-slate-400">Tensile Stress ($\sigma = \frac{F}{A}$):</span>
+                            <span id="calc-stress" class="text-cyan-400 font-bold">0.00 MPa</span>
+                        </div>
+                        <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/80 border border-slate-800">
+                            <span class="text-slate-400">Tensile Strain ($\varepsilon = \frac{\Delta L}{L_0}$):</span>
+                            <span id="calc-strain" class="text-purple-400 font-bold">0.00000</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Final Result & Young Modulus Highlight -->
+                <div class="bg-slate-800/50 rounded-2xl border border-slate-700/60 p-4 flex flex-col justify-between border-l-4 border-l-cyan-500">
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center justify-between">
+                            <span>Young's Modulus ($E$)</span>
+                            <span class="text-[10px] text-slate-400 font-normal">Derived Constant</span>
+                        </h3>
+                        <p class="text-[11px] text-slate-400 leading-relaxed mb-3">
+                            Defined as the ratio of tensile stress to tensile strain in the linear elastic regime:
+                        </p>
+                        <div class="text-center py-2 bg-slate-950/80 rounded-xl border border-cyan-500/30 mb-3 shadow-inner">
+                            <span class="text-slate-400 text-xs">$E = \frac{\sigma}{\varepsilon} =$</span>
+                            <div class="text-2xl font-bold font-mono text-cyan-300 mt-1" id="calc-youngs">
+                                200.0 GPa
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-[11px] text-slate-400 bg-slate-900/40 p-2.5 rounded-lg border border-slate-800 space-y-1">
+                        <div class="flex justify-between">
+                            <span>Theoretical Reference:</span>
+                            <span class="font-bold text-slate-200" id="theory-val">200 GPa</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Experimental Error:</span>
+                            <span class="font-bold text-emerald-400" id="calc-error">0.0%</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Theory & Formula Guide -->
+            <div class="bg-slate-800/30 rounded-2xl border border-slate-700/40 p-4">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-300 mb-2 flex items-center gap-1.5">
+                    <i class="fa-solid fa-graduation-cap text-cyan-400"></i> Mathematical Formula Guide
+                </h4>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-slate-300 mt-2">
+                    <div class="bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
+                        <div class="font-semibold text-cyan-400 mb-1">1. Tensile Stress ($\sigma$)</div>
+                        <p class="text-[11px] text-slate-400">Force per unit cross-sectional area applied to the wire.</p>
+                        <p class="mt-1 text-center font-mono text-slate-200">$$\sigma = \frac{F}{A} \quad [\text{N/m}^2 \text{ or Pa}]$$</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
+                        <div class="font-semibold text-purple-400 mb-1">2. Tensile Strain ($\varepsilon$)</div>
+                        <p class="text-[11px] text-slate-400">Fractional extension or ratio of elongation to original length.</p>
+                        <p class="mt-1 text-center font-mono text-slate-200">$$\varepsilon = \frac{\Delta L}{L_0} \quad [\text{dimensionless}]$$</p>
+                    </div>
+                    <div class="bg-slate-900/50 p-2.5 rounded-lg border border-slate-800">
+                        <div class="font-semibold text-amber-400 mb-1">3. Young's Modulus ($E$)</div>
+                        <p class="text-[11px] text-slate-400">Measure of stiffness of a solid material.</p>
+                        <p class="mt-1 text-center font-mono text-slate-200">$$E = \frac{\text{Stress}}{\text{Strain}} = \frac{F \cdot L_0}{A \cdot \Delta L}$$</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-slate-800 text-center text-slate-500 text-xs py-3 mt-auto">
+        Interactive Physics Animation & Laboratory Demonstration &bull; Visualizing Hooke's Law & Tensile Testing
+    </footer>
+
+    <!-- Interactive Logic & Physics Simulation Script -->
+    <script>
+        // --- Material Preset Database ---
+        const MATERIAL_DATA = {
+            steel_hard: { name: 'Steel Wire', E: 200e9, yieldStress: 250e6, color: '#38bdf8' },
+            steel: { name: 'Copper Wire', E: 110e9, yieldStress: 70e6, color: '#f97316' },
+            aluminum: { name: 'Aluminum Wire', E: 70e9, yieldStress: 90e6, color: '#a855f7' },
+            brass: { name: 'Brass Wire', E: 100e9, yieldStress: 120e6, color: '#eab308' }
+        };
+
+        // --- Global State ---
+        let state = {
+            materialKey: 'steel_hard',
+            mass: 0.0, // kg
+            originalLength: 2.0, // m
+            diameterMM: 0.50, // mm
+            gravity: 9.81, // m/s^2
+            isPlaying: false,
+            animDirection: 1, // 1 for loading, -1 for unloading
+            activeTab: 'stress', // 'stress' or 'force'
+            time: 0
+        };
+
+        // Recorded data points for plotting
+        let recordedData = [];
+
+        // --- Canvas Initialization ---
+        const apparatusCanvas = document.getElementById('apparatus-canvas');
+        const ctx = apparatusCanvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = apparatusCanvas.parentElement.getBoundingClientRect();
+            apparatusCanvas.width = rect.width;
+            apparatusCanvas.height = rect.height;
+        }
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            drawApparatus();
+        });
+
+        // --- Chart Initialization ---
+        const chartCanvas = document.getElementById('chart-canvas').getContext('2d');
+        let physicsChart = new Chart(chartCanvas, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Stress vs Strain',
+                    data: [],
+                    borderColor: '#06b6d4',
+                    backgroundColor: 'rgba(6, 182, 212, 0.1)',
+                    borderWidth: 2.5,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: {
+                        type: 'linear',
+                        title: {
+                            display: true,
+                            text: 'Strain (ε)',
+                            color: '#94a3b8',
+                            font: { family: 'Inter', size: 11, weight: 'bold' }
+                        },
+                        ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } },
+                        grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                    },
+                    y: {
+                        type: 'linear',
+                        title: {
+                            display: true,
+                            text: 'Stress (MPa)',
+                            color: '#94a3b8',
+                            font: { family: 'Inter', size: 11, weight: 'bold' }
+                        },
+                        ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } },
+                        grid: { color: 'rgba(51, 65, 85, 0.3)' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: '#0f172a',
+                        borderColor: '#334155',
+                        borderWidth: 1,
+                        titleFont: { family: 'Inter', size: 12 },
+                        bodyFont: { family: 'JetBrains Mono', size: 11 },
+                        displayColors: false
+                    }
+                }
+            }
+        });
+
+        // --- Calculations helper ---
+        function calculatePhysics() {
+            const mat = MATERIAL_DATA[state.materialKey];
+            const force = state.mass * state.gravity; // Force in N
+            const radiusM = (state.diameterMM / 1000) / 2;
+            const area = Math.PI * Math.pow(radiusM, 2); // Area in m^2
+
+            const stress = force / area; // Stress in Pa
+            
+            // Calculate strain considering linear elastic region
+            let strain = stress / mat.E;
+            
+            // Small non-linear behavior if stress exceeds yield point
+            if (stress > mat.yieldStress) {
+                const plasticStress = stress - mat.yieldStress;
+                strain += Math.pow(plasticStress / mat.E, 1.2) * 2;
+            }
+
+            const extensionM = strain * state.originalLength; // Extension in m
+            const extensionMM = extensionM * 1000; // Extension in mm
+
+            return {
+                force,
+                area,
+                stress,
+                stressMPa: stress / 1e6,
+                strain,
+                extensionM,
+                extensionMM,
+                youngsGPa: mat.E / 1e9,
+                isYielding: stress > mat.yieldStress
+            };
+        }
+
+        // --- Canvas Apparatus Renderer ---
+        function drawApparatus() {
+            const w = apparatusCanvas.width;
+            const h = apparatusCanvas.height;
+            const phys = calculatePhysics();
+            const mat = MATERIAL_DATA[state.materialKey];
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Center alignment reference
+            const centerX = w * 0.45;
+            const topY = 40;
+            const bottomYLimit = h - 100;
+            const wireLengthPx = bottomYLimit - topY - 80;
+
+            // Visual strain displacement pixel scaling (magnified so it's clearly visible)
+            const extensionVisualPx = phys.extensionMM * 18; 
+            const currentWireBottomY = topY + wireLengthPx + extensionVisualPx;
+
+            // 1. Draw Rigid Ceiling / Support
+            ctx.fillStyle = '#334155';
+            ctx.fillRect(centerX - 90, topY - 15, 180, 15);
+            
+            // Hatching lines on rigid support
+            ctx.strokeStyle = '#64748b';
+            ctx.lineWidth = 1.5;
+            for (let x = centerX - 85; x < centerX + 85; x += 10) {
+                ctx.beginPath();
+                ctx.moveTo(x, topY - 15);
+                ctx.lineTo(x + 8, topY - 25);
+                ctx.stroke();
+            }
+
+            // 2. Main Support Hook / Clamp
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(centerX - 15, topY, 30, 15);
+            ctx.strokeStyle = '#94a3b8';
+            ctx.strokeRect(centerX - 15, topY, 30, 15);
+
+            // 3. The Wire (Stretching Animation Visual)
+            ctx.beginPath();
+            ctx.moveTo(centerX, topY + 15);
+            ctx.lineTo(centerX, currentWireBottomY);
+            ctx.lineWidth = Math.max(1.5, state.diameterMM * 2.5); // Thickness reflects actual diameter
+            ctx.strokeStyle = mat.color;
+            ctx.shadowColor = mat.color;
+            ctx.shadowBlur = phys.isYielding ? 12 : 4;
+            ctx.stroke();
+            ctx.shadowBlur = 0; // Reset shadow
+
+            // 4. Marker / Pointer on the wire
+            const markerY = currentWireBottomY - 20;
+            ctx.fillStyle = '#ef4444'; // Red marker
+            ctx.beginPath();
+            ctx.moveTo(centerX - 2, markerY);
+            ctx.lineTo(centerX - 12, markerY - 6);
+            ctx.lineTo(centerX - 12, markerY + 6);
+            ctx.closePath();
+            ctx.fill();
+
+            // 5. Vernier / Ruler Scale Visualizer (Right side)
+            const scaleX = centerX + 40;
+            const scaleTopY = topY + wireLengthPx - 40;
+            const scaleHeight = 120;
+
+            // Scale Background
+            ctx.fillStyle = '#0f172a';
+            ctx.fillRect(scaleX, scaleTopY, 50, scaleHeight);
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(scaleX, scaleTopY, 50, scaleHeight);
+
+            // Main Scale Ticks
+            ctx.strokeStyle = '#94a3b8';
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '9px JetBrains Mono';
+            for (let y = scaleTopY + 10; y <= scaleTopY + scaleHeight - 10; y += 8) {
+                ctx.beginPath();
+                ctx.moveTo(scaleX, y);
+                const isLong = (y - (scaleTopY + 10)) % 32 === 0;
+                ctx.lineTo(scaleX + (isLong ? 15 : 8), y);
+                ctx.stroke();
+
+                if (isLong) {
+                    const markVal = ((scaleTopY + scaleHeight - y) / 10).toFixed(0);
+                    ctx.fillText(`${markVal}mm`, scaleX + 18, y + 3);
+                }
+            }
+
+            // Moving Vernier Pointer linked to Extension
+            const vernierPointerY = scaleTopY + 20 + extensionVisualPx;
+            ctx.fillStyle = '#06b6d4';
+            ctx.beginPath();
+            ctx.moveTo(centerX - 2, markerY);
+            ctx.lineTo(scaleX, vernierPointerY);
+            ctx.strokeStyle = 'rgba(6, 182, 212, 0.4)';
+            ctx.setLineDash([3, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset line dash
+
+            // Pointer arrowhead on scale
+            ctx.fillStyle = '#06b6d4';
+            ctx.beginPath();
+            ctx.moveTo(scaleX, vernierPointerY);
+            ctx.lineTo(scaleX - 8, vernierPointerY - 5);
+            ctx.lineTo(scaleX - 8, vernierPointerY + 5);
+            ctx.closePath();
+            ctx.fill();
+
+            // 6. Weight Hanger Assembly
+            const hangerWidth = 40;
+            const hangerY = currentWireBottomY;
+
+            // Hook
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(centerX, hangerY + 8, 8, Math.PI, 0);
+            ctx.lineTo(centerX, hangerY + 30);
+            ctx.stroke();
+
+            // Slotted Mass Base Plate
+            ctx.fillStyle = '#475569';
+            ctx.fillRect(centerX - hangerWidth / 2, hangerY + 30, hangerWidth, 6);
+
+            // Stacked Masses (Visual stacks based on kg)
+            const numWeights = Math.floor(state.mass);
+            const partialWeight = state.mass - numWeights;
+            
+            let currentStackY = hangerY + 24;
+            ctx.fillStyle = '#fbbf24'; // Amber slotted weights
+            ctx.strokeStyle = '#b45309';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < numWeights; i++) {
+                ctx.fillRect(centerX - hangerWidth / 2 + 2, currentStackY, hangerWidth - 4, 6);
+                ctx.strokeRect(centerX - hangerWidth / 2 + 2, currentStackY, hangerWidth - 4, 6);
+                currentStackY -= 7;
+            }
+
+            // Partial mass on top
+            if (partialWeight > 0) {
+                const partialH = Math.max(2, 6 * partialWeight);
+                ctx.fillRect(centerX - hangerWidth / 2 + 4, currentStackY + (6 - partialH), hangerWidth - 8, partialH);
+                ctx.strokeRect(centerX - hangerWidth / 2 + 4, currentStackY + (6 - partialH), hangerWidth - 8, partialH);
+            }
+
+            // 7. Status & Yielding Alert Banner on Canvas
+            if (phys.isYielding) {
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.85)';
+                ctx.fillRect(w / 2 - 110, 15, 220, 24);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 11px Inter';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚠️ ELASTIC LIMIT EXCEEDED (PLASTIC DEFORMATION)', w / 2, 31);
+                ctx.textAlign = 'left';
+            }
+        }
+
+        // --- Data & Dashboard Sync ---
+        function updateDashboard() {
+            const phys = calculatePhysics();
+            const mat = MATERIAL_DATA[state.materialKey];
+
+            // Update Text Displays
+            document.getElementById('val-mass').innerText = `${state.mass.toFixed(1)} kg`;
+            document.getElementById('calc-force').innerText = `${phys.force.toFixed(2)} N`;
+            document.getElementById('calc-area').innerText = `${(phys.area * 1e6).toFixed(4)} mm² (${phys.area.toExponential(3)} m²)`;
+            document.getElementById('calc-stress').innerText = `${phys.stressMPa.toFixed(2)} MPa`;
+            document.getElementById('calc-strain').innerText = phys.strain.toFixed(6);
+            document.getElementById('calc-youngs').innerText = `${phys.youngsGPa.toFixed(1)} GPa`;
+            document.getElementById('theory-val').innerText = `${(mat.E / 1e9).toFixed(1)} GPa`;
+
+            document.getElementById('zoom-main-scale').innerText = `${state.originalLength.toFixed(2)} m`;
+            document.getElementById('zoom-extension').innerText = `${phys.extensionMM.toFixed(3)} mm`;
+
+            // Calculate percentage error
+            const calcE = (phys.strain > 0) ? (phys.stress / phys.strain) / 1e9 : mat.E / 1e9;
+            const errorPct = Math.abs((calcE - (mat.E / 1e9)) / (mat.E / 1e9)) * 100;
+            document.getElementById('calc-error').innerText = `${errorPct.toFixed(1)}%`;
+
+            // Elastic Status Badge
+            const elasticBadge = document.getElementById('elastic-status');
+            if (phys.isYielding) {
+                elasticBadge.innerText = 'Plastic Region';
+                elasticBadge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-red-500/20 text-red-400 font-mono border border-red-500/40';
+            } else {
+                elasticBadge.innerText = 'Elastic Region';
+                elasticBadge.className = 'text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-mono border border-emerald-500/40';
+            }
+
+            // Sync Graph Data
+            updateChart(phys);
+            
+            // Draw Canvas Apparatus
+            drawApparatus();
+        }
+
+        function updateChart(phys) {
+            const isStressTab = state.activeTab === 'stress';
+
+            // Add point if unique
+            const xVal = isStressTab ? phys.strain : phys.extensionMM;
+            const yVal = isStressTab ? phys.stressMPa : phys.force;
+
+            // Check if point already recorded
+            const exists = recordedData.some(p => Math.abs(p.mass - state.mass) < 0.05);
+            if (!exists) {
+                recordedData.push({
+                    mass: state.mass,
+                    strain: phys.strain,
+                    stressMPa: phys.stressMPa,
+                    extensionMM: phys.extensionMM,
+                    force: phys.force
+                });
+                recordedData.sort((a, b) => a.mass - b.mass);
+            }
+
+            // Re-populate Chart dataset
+            physicsChart.data.datasets[0].data = recordedData.map(p => ({
+                x: isStressTab ? p.strain : p.extensionMM,
+                y: isStressTab ? p.stressMPa : p.force
+            }));
+
+            physicsChart.data.datasets[0].borderColor = isStressTab ? '#06b6d4' : '#f59e0b';
+            physicsChart.data.datasets[0].backgroundColor = isStressTab ? 'rgba(6, 182, 212, 0.1)' : 'rgba(245, 158, 11, 0.1)';
+
+            physicsChart.options.scales.x.title.text = isStressTab ? 'Tensile Strain (ε)' : 'Extension ΔL (mm)';
+            physicsChart.options.scales.y.title.text = isStressTab ? 'Tensile Stress (MPa)' : 'Applied Force F (N)';
+
+            physicsChart.update();
+        }
+
+        // --- Event Listeners & Controls ---
+        document.getElementById('slider-mass').addEventListener('input', (e) => {
+            state.mass = parseFloat(e.target.value);
+            updateDashboard();
+        });
+
+        document.getElementById('input-length').addEventListener('change', (e) => {
+            state.originalLength = Math.max(0.1, parseFloat(e.target.value) || 2.0);
+            recordedData = []; // Clear graph cache on geometry change
+            updateDashboard();
+        });
+
+        document.getElementById('input-diameter').addEventListener('change', (e) => {
+            state.diameterMM = Math.max(0.05, parseFloat(e.target.value) || 0.5);
+            recordedData = [];
+            updateDashboard();
+        });
+
+        document.getElementById('material-select').addEventListener('change', (e) => {
+            state.materialKey = e.target.value;
+            recordedData = [];
+            updateDashboard();
+        });
+
+        // Tab Switching Logic
+        document.getElementById('tab-btn-stress').addEventListener('click', () => {
+            state.activeTab = 'stress';
+            document.getElementById('tab-btn-stress').className = 'text-xs font-bold px-3 py-1.5 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 transition-all flex items-center gap-1.5';
+            document.getElementById('tab-btn-force').className = 'text-xs font-bold px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all flex items-center gap-1.5';
+            updateDashboard();
+        });
+
+        document.getElementById('tab-btn-force').addEventListener('click', () => {
+            state.activeTab = 'force';
+            document.getElementById('tab-btn-force').className = 'text-xs font-bold px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 transition-all flex items-center gap-1.5';
+            document.getElementById('tab-btn-stress').className = 'text-xs font-bold px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all flex items-center gap-1.5';
+            updateDashboard();
+        });
+
+        // Animation Loop for Auto-Loading
+        let animFrameId = null;
+        function autoAnimate() {
+            if (!state.isPlaying) return;
+
+            state.mass += 0.04 * state.animDirection;
+            if (state.mass >= 10.0) {
+                state.mass = 10.0;
+                state.animDirection = -1; // Reverse loading
+            } else if (state.mass <= 0) {
+                state.mass = 0;
+                state.animDirection = 1;
+            }
+
+            document.getElementById('slider-mass').value = state.mass;
+            updateDashboard();
+
+            setTimeout(() => {
+                animFrameId = requestAnimationFrame(autoAnimate);
+            }, 30);
+        }
+
+        document.getElementById('btn-play-pause').addEventListener('click', () => {
+            state.isPlaying = !state.isPlaying;
+            const playIcon = document.getElementById('play-icon');
+            const playText = document.getElementById('play-text');
+
+            if (state.isPlaying) {
+                playIcon.className = 'fa-solid fa-pause';
+                playText.innerText = 'Pause Animation';
+                autoAnimate();
+            } else {
+                playIcon.className = 'fa-solid fa-play';
+                playText.innerText = 'Auto Loading';
+                if (animFrameId) cancelAnimationFrame(animFrameId);
+            }
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            state.isPlaying = false;
+            state.mass = 0;
+            state.animDirection = 1;
+            recordedData = [];
+
+            document.getElementById('play-icon').className = 'fa-solid fa-play';
+            document.getElementById('play-text').innerText = 'Auto Loading';
+            document.getElementById('slider-mass').value = 0;
+
+            if (animFrameId) cancelAnimationFrame(animFrameId);
+            updateDashboard();
+        });
+
+        // Initial setup
+        window.onload = () => {
+            resizeCanvas();
+            updateDashboard();
+        };
+    </script>
+</body>
+</html>
